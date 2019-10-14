@@ -11,8 +11,13 @@ import Foundation
 
 public class Client {
 
+    /// the given OAuth consumer key
     public let consumerKey: String
+
+    /// the given OAuth consumer secret
     public let consumerSecret: String
+
+    /// the given user agent to include as part of the headers in each request
     public let userAgent: String
 
     /// the session to use to make requests
@@ -95,6 +100,7 @@ extension Client {
         }
     }
 
+    /// start an OAuth based authorization flow using the given `request`
     public func startAuthorization(with request: AuthRequest, completion: @escaping (Result<Token, Swift.Error>) -> Void = { _ in }) {
         getRequestToken(with: request) { [weak self] requestTokenResult in
             do {
@@ -237,12 +243,12 @@ extension Client {
         case POST
     }
 
-    /// fill out headers necessary for an authentication gated endpoint
+    /// fills out `Authorization` and `User-Agent` headers necessary for an authentication gated endpoint
     public func authorizeRequest(_ request: inout URLRequest) {
         authorizeRequest(&request, contentType: nil, phase: .authenticated)
     }
 
-    /// fill out headers necessary for an authentication gated endpoint. this private function is able to include
+    /// fills out headers necessary for an authentication gated endpoint. this private function is able to include
     /// a `Content-Type` as well as customize those headers depending on what auth phase the user is currently in
     private func authorizeRequest(_ request: inout URLRequest, contentType: HTTPContentType?, phase: AuthPhase) {
         if let contentType = contentType {
