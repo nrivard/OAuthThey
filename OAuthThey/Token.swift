@@ -16,29 +16,19 @@ public struct Token: Codable {
     /// The OAuth token secret
     let secret: String
 
-    /// The OAuth token session
-    let session: String
-
-    /// The OAuth token verifier
-//    let verifier: String
-
-    public init(key: String, secret: String, session: String) {
+    public init(key: String, secret: String) {
         self.key = key
         self.secret = secret
-        self.session = session
     }
 }
 
 extension Token {
 
-    init?(queryParameters: [URLQueryItem]) {
-        guard let key = queryParameters.first(where: { $0.name == "oauth_token"})?.value,
-            let secret = queryParameters.first(where: { $0.name == "oauth_token_secret"})?.value else { return nil }
+    init?(components: [URLQueryItem]) {
+        guard let key = components.first(where: { $0.name == "oauth_token"})?.value,
+            let secret = components.first(where: { $0.name == "oauth_token_secret"})?.value else { return nil }
 
-        // this can be empty
-        let session = queryParameters.first(where: { $0.name == "oauth_session_handle"})?.value ?? ""
-
-        self.init(key: key, secret: secret, session: session)
+        self.init(key: key, secret: secret)
     }
 }
 
