@@ -15,7 +15,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
-    let client = Client(consumerKey: "HHGwPKlApSinjJeCUtPx", consumerSecret: "CqAXZitUyfQbqcppOffnQOawzLOpFkqs")
+    let client = Client(consumerKey: "HHGwPKlApSinjJeCUtPx", consumerSecret: "CqAXZitUyfQbqcppOffnQOawzLOpFkqs", userAgent: "Record Holder/1.2.1.1")
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
@@ -33,19 +33,21 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             window.makeKeyAndVisible()
         }
 
-        let authRequest: Client.AuthRequest = .init(
-            requestURL: URL(string: "https://api.discogs.com/oauth/request_token")!,
-            authorizeURL: URL(string: "https://www.discogs.com/oauth/authorize")!,
-            accessTokenURL: URL(string: "https://api.discogs.com/oauth/access_token")!,
-            window: self.window!
-        )
+        if !client.isAuthenticated {
+            let authRequest: Client.AuthRequest = .init(
+                requestURL: URL(string: "https://api.discogs.com/oauth/request_token")!,
+                authorizeURL: URL(string: "https://www.discogs.com/oauth/authorize")!,
+                accessTokenURL: URL(string: "https://api.discogs.com/oauth/access_token")!,
+                window: self.window!
+            )
 
-        client.startAuthorization(with: authRequest) { result in
-            do {
-                let token = try result.get()
-                print(token)
-            } catch {
-                print(error)
+            client.startAuthorization(with: authRequest) { result in
+                do {
+                    let token = try result.get()
+                    print(token)
+                } catch {
+                    print(error)
+                }
             }
         }
     }

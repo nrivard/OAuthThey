@@ -17,8 +17,7 @@ extension Client {
     }
 
     public enum HTTPContentType: String {
-        case urlEncoded = "application/x-www-form-urlencoded"
-        case JSON = "application/json"
+        case urlEncoded = "application/x-www-form-urlencoded; charset=utf-8"
     }
 
     public enum HTTPMethod: String {

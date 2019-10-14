@@ -13,6 +13,7 @@ public class Client {
 
     public let consumerKey: String
     public let consumerSecret: String
+    public let userAgent: String
 
     /// the session to use to make requests
     public let session: URLSession
@@ -21,7 +22,15 @@ public class Client {
     public var signatureMethod: SignatureMethod = .plaintext
 
     /// token returned after successfully authenticating or `nil` if not currently logged in
-    public var token: Token?
+    public var token: Token? {
+        didSet {
+            if let token = token {
+                try? keychainService.set(token, key: Client.keychainKey)
+            } else {
+                try? keychainService.remove(key: Client.keychainKey)
+            }
+        }
+    }
 
     /// returns whether this client is currently authenticated with the OAuth provider
     public var isAuthenticated: Bool {
@@ -32,10 +41,16 @@ public class Client {
     private var authContextProvider: ClientContextProvider?
     private var authSession: ASWebAuthenticationSession?
 
-    public init(consumerKey: String, consumerSecret: String, session: URLSession = .shared) {
+    private let keychainService = KeychainService(service: "com.oauththey")
+
+    public init(consumerKey: String, consumerSecret: String, userAgent: String, session: URLSession = .shared) {
         self.consumerKey = consumerKey
         self.consumerSecret = consumerSecret
+        self.userAgent = userAgent
         self.session = session
+
+        // attempt to load a persisted token
+        self.token = try? keychainService.get(key: Client.keychainKey)
     }
 }
 
@@ -200,6 +215,7 @@ extension Client {
 extension Client {
 
     private static let callbackURL = URL(string: "oauththey:success")!
+    private static let keychainKey = "credentials"
 
     private enum AuthPhase {
         /// the first phase of authentication. must pass the callback URL
@@ -213,13 +229,17 @@ extension Client {
     }
 
     /// fill out headers necessary for an authentication gated endpoint
-    public func authorizeRequest(_ request: inout URLRequest, contentType: HTTPContentType) {
-        authorizeRequest(&request, contentType: contentType, phase: .authenticated)
+    public func authorizeRequest(_ request: inout URLRequest) {
+        authorizeRequest(&request, contentType: nil, phase: .authenticated)
     }
 
-    private func authorizeRequest(_ request: inout URLRequest, contentType: HTTPContentType, phase: AuthPhase) {
-        request.setValue(contentType.rawValue + "; charset=utf-8", forHTTPHeaderField: "Content-Type")
-        request.setValue("Record Holder/1.2.1.1", forHTTPHeaderField: "User-Agent") // TODO: FIX!
+    /// fill out headers necessary for an authentication gated endpoint. this private function is able to include
+    /// a `Content-Type` as well as customize those headers depending on what auth phase the user is currently in
+    private func authorizeRequest(_ request: inout URLRequest, contentType: HTTPContentType?, phase: AuthPhase) {
+        if let contentType = contentType {
+            request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
+        }
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(generateOAuthHeaders(for: phase), forHTTPHeaderField: "Authorization")
     }
 
