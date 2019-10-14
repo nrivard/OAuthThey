@@ -54,7 +54,7 @@ public class Client {
         self.userAgent = userAgent
         self.session = session
 
-        // attempt to load a persisted token
+        // attempt to load a persisted token. Since this is in `init`, it won't trigger the persistence portion in `didSet`
         self.token = try? keychainService.get(key: Client.keychainKey)
     }
 }
