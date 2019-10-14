@@ -10,6 +10,9 @@
 		E758E2CF234FF283006EEDBE /* OAuthThey.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E758E2C5234FF282006EEDBE /* OAuthThey.framework */; };
 		E758E2D4234FF283006EEDBE /* OAuthTheyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E758E2D3234FF283006EEDBE /* OAuthTheyTests.swift */; };
 		E758E2D6234FF283006EEDBE /* OAuthThey.h in Headers */ = {isa = PBXBuildFile; fileRef = E758E2C8234FF282006EEDBE /* OAuthThey.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		E758E2E0234FF307006EEDBE /* Token.swift in Sources */ = {isa = PBXBuildFile; fileRef = E758E2DF234FF307006EEDBE /* Token.swift */; };
+		E758E2E2234FF933006EEDBE /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E758E2E1234FF933006EEDBE /* KeychainService.swift */; };
+		E758E2E4234FFCEE006EEDBE /* Client.swift in Sources */ = {isa = PBXBuildFile; fileRef = E758E2E3234FFCEE006EEDBE /* Client.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,6 +32,9 @@
 		E758E2CE234FF283006EEDBE /* OAuthTheyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OAuthTheyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E758E2D3234FF283006EEDBE /* OAuthTheyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthTheyTests.swift; sourceTree = "<group>"; };
 		E758E2D5234FF283006EEDBE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E758E2DF234FF307006EEDBE /* Token.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Token.swift; sourceTree = "<group>"; };
+		E758E2E1234FF933006EEDBE /* KeychainService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		E758E2E3234FFCEE006EEDBE /* Client.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Client.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +79,9 @@
 			children = (
 				E758E2C8234FF282006EEDBE /* OAuthThey.h */,
 				E758E2C9234FF282006EEDBE /* Info.plist */,
+				E758E2DF234FF307006EEDBE /* Token.swift */,
+				E758E2E1234FF933006EEDBE /* KeychainService.swift */,
+				E758E2E3234FFCEE006EEDBE /* Client.swift */,
 			);
 			path = OAuthThey;
 			sourceTree = "<group>";
@@ -148,6 +157,7 @@
 				TargetAttributes = {
 					E758E2C4234FF282006EEDBE = {
 						CreatedOnToolsVersion = 11.0;
+						LastSwiftMigration = 1100;
 					};
 					E758E2CD234FF283006EEDBE = {
 						CreatedOnToolsVersion = 11.0;
@@ -195,6 +205,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E758E2E0234FF307006EEDBE /* Token.swift in Sources */,
+				E758E2E2234FF933006EEDBE /* KeychainService.swift in Sources */,
+				E758E2E4234FFCEE006EEDBE /* Client.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -340,6 +353,7 @@
 		E758E2DA234FF283006EEDBE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = ZL7L5KH6AL;
@@ -356,6 +370,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.naterivard.OAuthThey;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -364,6 +379,7 @@
 		E758E2DB234FF283006EEDBE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = ZL7L5KH6AL;
@@ -388,6 +404,7 @@
 		E758E2DD234FF283006EEDBE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = ZL7L5KH6AL;
 				INFOPLIST_FILE = OAuthTheyTests/Info.plist;
@@ -406,6 +423,7 @@
 		E758E2DE234FF283006EEDBE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = ZL7L5KH6AL;
 				INFOPLIST_FILE = OAuthTheyTests/Info.plist;
