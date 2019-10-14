@@ -16,17 +16,6 @@ extension Client {
         case plaintext = "PLAINTEXT"
     }
 
-    public enum HTTPContentType: String {
-        case urlEncoded = "application/x-www-form-urlencoded; charset=utf-8"
-    }
-
-    public enum HTTPMethod: String {
-        case GET
-        case POST
-        case PUT
-        case DELETE
-    }
-
     public enum Error: Swift.Error {
         case invalidToken
         case invalidAuthorizeURL

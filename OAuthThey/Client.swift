@@ -228,6 +228,15 @@ extension Client {
         case authenticated
     }
 
+    private enum HTTPContentType: String {
+        case urlEncoded = "application/x-www-form-urlencoded; charset=utf-8"
+    }
+
+    private enum HTTPMethod: String {
+        case GET
+        case POST
+    }
+
     /// fill out headers necessary for an authentication gated endpoint
     public func authorizeRequest(_ request: inout URLRequest) {
         authorizeRequest(&request, contentType: nil, phase: .authenticated)
