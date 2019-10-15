@@ -6,6 +6,10 @@ OAuthThey is a singular purpose OAuth 1.0a implementation, specifically for use 
 
 ## Getting Started
 
+OAuthThey uses the Swift Package Manager. To include it in your project, just add it as a swift package dependency in XCode and `import OAuthThey` in any files that need to use it.
+
+## Using OAuthThey
+
 First, create your `Client` and provide your consumer key and secret:
 
 ```
@@ -40,7 +44,7 @@ client.authorizeRequest(&request)
 
 OAuthThey will automatically include the proper OAuth headers on your request as well as `User-Agent`. You are responsible for `Content-Type`,  `Accepts`, and any other headers your service may require.
 
-Cleaning up when a user wants to logout is easy as well, including removing credentials from the `Keychain`:
+Cleaning up when a user wants to log out is easy as well, including removing credentials from the `Keychain`:
 
 ```
 client.logout()
