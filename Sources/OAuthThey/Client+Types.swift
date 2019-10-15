@@ -6,7 +6,7 @@
 //  Copyright © 2019 Nate Rivard. All rights reserved.
 //
 
-import UIKit
+import AuthenticationServices
 
 extension Client {
 
@@ -28,9 +28,9 @@ extension Client {
         public let authorizeURL: URL
         public let accessTokenURL: URL
 
-        public let window: UIWindow
+        public let window: ASPresentationAnchor
 
-        public init(requestURL: URL, authorizeURL: URL, accessTokenURL: URL, window: UIWindow) {
+        public init(requestURL: URL, authorizeURL: URL, accessTokenURL: URL, window: ASPresentationAnchor) {
             self.requestURL = requestURL
             self.authorizeURL = authorizeURL
             self.accessTokenURL = accessTokenURL

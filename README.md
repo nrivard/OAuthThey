@@ -16,7 +16,7 @@ First, create your `Client` and provide your consumer key and secret:
 public let client: Client = .init(consumerKey: consumerKey, consumerSecret: consumerSecret, userAgent: userAgent)
 ```
 
-Next, create your `AuthRequest` , provide a `UIWindow` to present web UI from, and start the authorization process:
+Next, create your `AuthRequest` , provide an `ASPresentationAnchor` to present web UI from, and start the authorization process:
 
 ```
 let authRequest: Client.AuthRequest = .init(
