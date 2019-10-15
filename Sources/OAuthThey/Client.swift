@@ -294,8 +294,9 @@ extension Client {
                 .init(name: "oauth_verifier", value: authResponse.verifier)
             ]
         case .authenticated:
-            // nothing to add here
-            break
+            headers += [
+                .init(name: "oauth_token", value: currentToken.key)
+            ]
         }
 
         let mappedHeaders = headers
@@ -323,6 +324,5 @@ extension Client: ASWebAuthenticationPresentationContextProviding {
 
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         return authAnchor ?? UIApplication.shared.keyWindow!
-        UIApplication.shared.connectedScenes
     }
 }
