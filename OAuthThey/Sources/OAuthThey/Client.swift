@@ -9,7 +9,8 @@
 import AuthenticationServices
 import Foundation
 
-public class Client {
+@objc
+public class Client: NSObject {
 
     /// the given OAuth consumer key
     public let consumerKey: String
@@ -27,7 +28,7 @@ public class Client {
     public var signatureMethod: SignatureMethod = .plaintext
 
     /// token returned after successfully authenticating or `nil` if not currently logged in
-    public var token: Token? {
+    public private(set) var token: Token? {
         didSet {
             if let token = token {
                 try? keychainService.set(token, key: Client.keychainKey)
@@ -43,7 +44,7 @@ public class Client {
     }
 
     /// we need to retain these during the web authentication phase
-    private var authContextProvider: ClientContextProvider?
+    private weak var authAnchor: ASPresentationAnchor?
     private var authSession: ASWebAuthenticationSession?
 
     private let keychainService = KeychainService(service: "com.oauththey")
@@ -166,8 +167,10 @@ extension Client {
         }
 
         authSession = ASWebAuthenticationSession(url: authorizeURL, callbackURLScheme: Client.callbackURL.scheme) { [weak self] url, error in
-            self?.authSession = nil
-            self?.authContextProvider = nil
+            defer {
+                self?.authSession = nil
+                self?.authAnchor = nil
+            }
 
             if let error = error {
                 completion(.failure(error))
@@ -185,8 +188,8 @@ extension Client {
             completion(.success(authorizeResponse))
         }
 
-        authContextProvider = ClientContextProvider(window: request.window)
-        authSession!.presentationContextProvider = authContextProvider!
+        authAnchor = request.window
+        authSession!.presentationContextProvider = self
 
         authSession!.start()
     }
@@ -224,7 +227,7 @@ extension Client {
     private static let keychainKey = "credentials"
 
     private enum AuthPhase {
-        /// the first phase of authentication. must pass the callback URL
+        /// the first phase of authentication
         case requestingToken
 
         /// the second phase of authentication. Requires an `AuthorizeResponse` to properly fill out
@@ -241,6 +244,11 @@ extension Client {
     private enum HTTPMethod: String {
         case GET
         case POST
+    }
+
+    /// removes persisted credentials and removes existing Token
+    public func logout() {
+        self.token = nil
     }
 
     /// fills out `Authorization` and `User-Agent` headers necessary for an authentication gated endpoint
@@ -262,6 +270,7 @@ extension Client {
         // use our real token or a temporary generated one to fill out the signatured
         let currentToken: Token = token ?? temporaryToken(for: phase)
 
+        // need to round to nearest integer value
         let timestamp = Int(Date().timeIntervalSince1970)
 
         var headers: [URLQueryItem] = [
@@ -276,7 +285,9 @@ extension Client {
         switch phase {
         case .requestingToken:
             let callbackURL = Client.callbackURL.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)
-            headers.append(.init(name: "oauth_callback", value: callbackURL))
+            headers += [
+                .init(name: "oauth_callback", value: callbackURL)
+            ]
         case .requestingAccessToken(let authResponse):
             headers += [
                 .init(name: "oauth_token", value: authResponse.token),
@@ -305,5 +316,13 @@ extension Client {
         case .requestingAccessToken(let authResponse):
             return .init(key: "", secret: authResponse.tokenSecret)
         }
+    }
+}
+
+extension Client: ASWebAuthenticationPresentationContextProviding {
+
+    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return authAnchor ?? UIApplication.shared.keyWindow!
+        UIApplication.shared.connectedScenes
     }
 }
