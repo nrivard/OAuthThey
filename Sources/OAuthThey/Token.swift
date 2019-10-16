@@ -11,10 +11,10 @@ import Foundation
 public struct Token: Codable {
 
     /// The OAuth token key
-    let key: String
+    public let key: String
 
     /// The OAuth token secret
-    let secret: String
+    public let secret: String
 
     public init(key: String, secret: String) {
         self.key = key
@@ -35,12 +35,12 @@ extension Token {
 extension Token {
 
     /// the signature method for this token
-    public var signatureMethod: Client.SignatureMethod {
+    var signatureMethod: Client.SignatureMethod {
         return .plaintext
     }
 
     /// the signature using this token
-    public func signature(with consumerSecret: String) -> String {
+    func signature(with consumerSecret: String) -> String {
         switch signatureMethod {
         case .plaintext:
             return "\(consumerSecret)&\(secret)"
