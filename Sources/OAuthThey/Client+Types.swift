@@ -16,12 +16,22 @@ extension Client {
         case plaintext = "PLAINTEXT"
     }
 
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, CustomStringConvertible {
+
         case invalidToken
         case invalidAuthorizeURL
         case invalidVerifier
         case invalidAccessToken
         case cancelled
+
+        public var description: String {
+            switch self {
+            case .invalidToken, .invalidVerifier, .invalidAuthorizeURL, .invalidAccessToken:
+                return "There was a problem connecting with your provider’s OAuth service."
+            case .cancelled:
+                return "You cancelled authorization with your provider’s OAuth service."
+            }
+        }
     }
 
     public struct AuthRequest {
