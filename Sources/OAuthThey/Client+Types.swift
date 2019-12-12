@@ -21,6 +21,7 @@ extension Client {
         case invalidAuthorizeURL
         case invalidVerifier
         case invalidAccessToken
+        case cancelled
     }
 
     public struct AuthRequest {

@@ -184,7 +184,13 @@ extension Client {
             }
 
             if let error = error {
-                completion(.failure(error))
+                if (error as NSError).code == 1 {
+                    // cancellation
+                    completion(.failure(Error.cancelled))
+                } else {
+                    completion(.failure(error))
+                }
+
                 return
             }
 
