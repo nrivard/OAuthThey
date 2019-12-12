@@ -11,7 +11,7 @@ import AuthenticationServices
 extension Client {
 
     /// signature methods supported
-    public enum SignatureMethod: String {
+    public enum SignatureMethod: String, Codable {
         /// the only signature method currently supported
         case plaintext = "PLAINTEXT"
     }

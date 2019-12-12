@@ -43,6 +43,8 @@ public class Client: NSObject {
         return token != nil
     }
 
+    public var isAuthorizing: Bool = false
+
     /// we need to retain these during the web authentication phase
     private weak var authAnchor: ASPresentationAnchor?
     private var authSession: ASWebAuthenticationSession?
@@ -103,6 +105,15 @@ extension Client {
 
     /// start an OAuth based authorization flow using the given `request`
     public func startAuthorization(with request: AuthRequest, completion: @escaping (Result<Token, Swift.Error>) -> Void = { _ in }) {
+        guard !isAuthorizing else { return }
+
+        isAuthorizing = true
+
+        let authCompletion: (Result<Token, Swift.Error>) -> Void = { [weak self] result in
+            self?.isAuthorizing = false
+            completion(result)
+        }
+
         getRequestToken(with: request) { [weak self] requestTokenResult in
             do {
                 let tokenResponse = try requestTokenResult.get()
@@ -113,17 +124,17 @@ extension Client {
                             do {
                                 let token = try accessResult.get()
                                 self?.token = token
-                                completion(.success(token))
+                                authCompletion(.success(token))
                             } catch {
-                                completion(.failure(error))
+                                authCompletion(.failure(error))
                             }
                         }
                     } catch {
-                        completion(.failure(error))
+                        authCompletion(.failure(error))
                     }
                 }
             } catch {
-                completion(.failure(error))
+                authCompletion(.failure(error))
             }
         }
     }
