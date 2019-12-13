@@ -88,7 +88,7 @@ final class KeychainService {
         let query = self.query(key: key)
 
         // there's not much we can do if it fails
-        return SecItemDelete(query as CFDictionary)
+        let _ = SecItemDelete(query as CFDictionary)
     }
 }
 
