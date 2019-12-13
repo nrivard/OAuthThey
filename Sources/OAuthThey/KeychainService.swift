@@ -84,16 +84,11 @@ final class KeychainService {
     }
 
     /// removes the value at the given key
-    func remove(key: String) throws {
+    func remove(key: String) {
         let query = self.query(key: key)
 
-        let status = SecItemDelete(query as CFDictionary)
-        switch status {
-        case errSecSuccess, errSecMissingValue:
-            return
-        default:
-            throw Error.unknown
-        }
+        // there's not much we can do if it fails
+        return SecItemDelete(query as CFDictionary)
     }
 }
 
