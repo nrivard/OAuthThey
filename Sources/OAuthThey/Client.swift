@@ -8,6 +8,7 @@
 
 import AuthenticationServices
 import Foundation
+import Combine
 
 @objc
 public class Client: NSObject {
@@ -35,15 +36,25 @@ public class Client: NSObject {
             } else {
                 try? keychainService.remove(key: Client.keychainKey)
             }
+
+            authenticationSubject.value = token != nil
         }
     }
 
     /// returns whether this client is currently authenticated with the OAuth provider
     public var isAuthenticated: Bool {
-        return token != nil
+        return authenticationSubject.value
     }
 
     public var isAuthorizing: Bool = false
+
+    /// underying storage type for subcribing to authentication changes
+    private let authenticationSubject: CurrentValueSubject<Bool, Never>
+
+    /// publisher that will send new values when authentication status changes
+    public var authenticationPublisher: some Publisher {
+        return authenticationSubject
+    }
 
     /// we need to retain these during the web authentication phase
     private weak var authAnchor: ASPresentationAnchor?
@@ -59,6 +70,9 @@ public class Client: NSObject {
 
         // attempt to load a persisted token. Since this is in `init`, it won't trigger the persistence portion in `didSet`
         self.token = try? keychainService.get(key: Client.keychainKey)
+
+        // the current value should be whether we are currently subscribed or not
+        self.authenticationSubject = CurrentValueSubject(self.token != nil)
     }
 }
 
