@@ -34,7 +34,7 @@ public class Client: NSObject {
             if let token = token {
                 try? keychainService.set(token, key: Client.keychainKey)
             } else {
-                try? keychainService.remove(key: Client.keychainKey)
+                keychainService.remove(key: Client.keychainKey)
             }
 
             authenticationSubject.value = token != nil
@@ -52,9 +52,7 @@ public class Client: NSObject {
     private let authenticationSubject: CurrentValueSubject<Bool, Never>
 
     /// publisher that will send new values when authentication status changes
-    public var authenticationPublisher: AnyPublisher<Bool, Never> {
-        return authenticationSubject.eraseToAnyPublisher()
-    }
+    public var authenticationPublisher: AnyPublisher<Bool, Never>
 
     /// we need to retain these during the web authentication phase
     private weak var authAnchor: ASPresentationAnchor?
@@ -73,6 +71,7 @@ public class Client: NSObject {
 
         // the current value should be whether we are currently subscribed or not
         self.authenticationSubject = CurrentValueSubject(self.token != nil)
+        self.authenticationPublisher = authenticationSubject.eraseToAnyPublisher()
     }
 }
 
