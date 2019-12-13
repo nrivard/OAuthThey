@@ -52,8 +52,8 @@ public class Client: NSObject {
     private let authenticationSubject: CurrentValueSubject<Bool, Never>
 
     /// publisher that will send new values when authentication status changes
-    public var authenticationPublisher: some Publisher {
-        return authenticationSubject
+    public var authenticationPublisher: AnyPublisher<Bool, Never> {
+        return authenticationSubject.eraseToAnyPublisher()
     }
 
     /// we need to retain these during the web authentication phase
