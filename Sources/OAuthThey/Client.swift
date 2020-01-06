@@ -352,7 +352,8 @@ extension Client {
 
 extension Client: ASWebAuthenticationPresentationContextProviding {
 
+    /// `authAnchor` needs to be set and non-nil or this will crash
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return authAnchor ?? UIApplication.shared.keyWindow!
+        return authAnchor!
     }
 }
