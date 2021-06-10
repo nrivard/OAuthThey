@@ -9,11 +9,18 @@ import Combine
 import Foundation
 import Security
 
-/// lightweight object that wraps only keychain access that is necessary to store our token
-final class KeychainService {
+protocol KeychainServicing {
+    func get<T: Codable>(key: String) throws -> T
+    func set<T: Codable>(_ value: T, key: String) throws
+    func remove(key: String)
+}
+
+/// lightweight object that wraps only the keychain access that is necessary to store our token
+struct KeychainService: KeychainServicing {
 
     enum Error: Swift.Error {
         case unknown
+        case resultMissing
         case resultNotData
         case unexpectedType
 
@@ -37,8 +44,8 @@ final class KeychainService {
         self.encoder = encoder
     }
 
-    /// retrieves the NSCoding type at the given key
-    func get<T: Codable>(key: String) throws -> T? {
+    /// retrieves the `Codable` type at the given key
+    func get<T: Codable>(key: String) throws -> T {
         var query = self.query(key: key)
         query[kSecMatchLimit] = kSecMatchLimitOne
         query[kSecReturnData] = kCFBooleanTrue
@@ -52,18 +59,18 @@ final class KeychainService {
 
             return try decoder.decode(T.self, from: data)
         case errSecItemNotFound:
-            return nil
+            throw Error.resultMissing
         default:
             throw Error.keychain(status)
         }
     }
 
-    /// adds or updates the NSCoding type at the given key
+    /// adds or updates the `Codable` type at the given key
     func set<T: Codable>(_ value: T, key: String) throws {
         let data = try encoder.encode(value)
 
         // first we do a fetch to see if this object exists or not. Adds =/= updates.
-        let result: T? = try get(key: key)
+        let result = try? get(key: key) as T
         let shouldAdd = result == nil
 
         let status: OSStatus

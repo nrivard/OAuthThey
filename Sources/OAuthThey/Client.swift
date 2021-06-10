@@ -10,275 +10,69 @@ import AuthenticationServices
 import Foundation
 import Combine
 
-@objc
-public class Client: NSObject {
+@available(iOS 15, macOS 12, *)
+public class Client {
+    /// configuration for this `Client`
+    public let configuration: Configuration
 
-    /// the given OAuth consumer key
-    public let consumerKey: String
+    /// publisher that will send new values with authentication status changes
+    public let authenticationPublisher: AnyPublisher<Token?, Never>
 
-    /// the given OAuth consumer secret
-    public let consumerSecret: String
+    /// underlying storage type for subcribing to authentication changes
+    private let tokenSubject: CurrentValueSubject<Token?, Never>
 
-    /// the given user agent to include as part of the headers in each request
-    public let userAgent: String
+    /// Injected keychain service
+    private let keychainService: KeychainServicing
 
-    /// the session to use to make requests
-    public let session: URLSession
+    /// Keep a subscription to the token subject so we can update keychain
+    private var tokenCanceller: AnyCancellable?
 
-    /// the signature method this client will use to communicate with the OAuth provider
-    public var signatureMethod: SignatureMethod = .plaintext
-
-    /// token returned after successfully authenticating or `nil` if not currently logged in
-    public private(set) var token: Token? {
-        didSet {
-            if let token = token {
-                try? keychainService.set(token, key: Client.keychainKey)
-            } else {
-                keychainService.remove(key: Client.keychainKey)
-            }
-
-            authenticationSubject.value = token != nil
-        }
+    /// Create a `Client` with the given `Configuration`
+    public convenience init(configuration: Configuration) {
+        self.init(configuration: configuration, keychainService: KeychainService(service: configuration.keychainServiceKey))
     }
 
-    /// returns whether this client is currently authenticated with the OAuth provider
-    public var isAuthenticated: Bool {
-        return authenticationSubject.value
-    }
+    /// internal `init` to inject a mock keychain service for testing
+    init(configuration: Configuration, keychainService: KeychainServicing) {
+        self.configuration = configuration
+        self.keychainService = keychainService
 
-    public var isAuthorizing: Bool = false
-
-    /// underying storage type for subcribing to authentication changes
-    private let authenticationSubject: CurrentValueSubject<Bool, Never>
-
-    /// publisher that will send new values when authentication status changes
-    public var authenticationPublisher: AnyPublisher<Bool, Never>
-
-    /// we need to retain these during the web authentication phase
-    private weak var authAnchor: ASPresentationAnchor?
-    private var authSession: ASWebAuthenticationSession?
-
-    private let keychainService = KeychainService(service: "com.oauththey")
-
-    public init(consumerKey: String, consumerSecret: String, userAgent: String, session: URLSession = .shared) {
-        self.consumerKey = consumerKey
-        self.consumerSecret = consumerSecret
-        self.userAgent = userAgent
-        self.session = session
-
-        // attempt to load a persisted token. Since this is in `init`, it won't trigger the persistence portion in `didSet`
-        self.token = try? keychainService.get(key: Client.keychainKey)
+        // attempt to load a persisted token
+        let token = try? self.keychainService.get(key: Client.keychainKey) as Token
 
         // the current value should be whether we are currently subscribed or not
-        self.authenticationSubject = CurrentValueSubject(self.token != nil)
-        self.authenticationPublisher = authenticationSubject.eraseToAnyPublisher()
+        self.tokenSubject = CurrentValueSubject(token)
+        self.authenticationPublisher = tokenSubject.eraseToAnyPublisher()
+
+        // the subject is our source of truth so we just have to clean up Keychain when its value changes
+        self.tokenCanceller = authenticationPublisher
+            .receive(on: DispatchQueue.global())
+            .sink {
+                if let token = $0 {
+                    try? keychainService.set(token, key: Client.keychainKey)
+                } else {
+                    keychainService.remove(key: Client.keychainKey)
+                }
+            }
     }
 }
 
 // MARK: - Initiating authentication
+@available(iOS 15, macOS 12, *)
 extension Client {
 
-    private struct RequestTokenResponse {
-        let token: String
-        let tokenSecret: String
-        let callbackConfirmed: Bool
-
-        init?(components: [URLQueryItem]) {
-            guard let token = components.first(where: { $0.name == "oauth_token" })?.value,
-                let tokenSecret = components.first(where: { $0.name == "oauth_token_secret"})?.value,
-                let callbackConfirmedString = components.first(where: { $0.name == "oauth_callback_confirmed" })?.value,
-                let callbackConfirmed = Bool(callbackConfirmedString) else
-            {
-                return nil
-            }
-
-            self.token = token
-            self.tokenSecret = tokenSecret
-            self.callbackConfirmed = callbackConfirmed
-        }
+    /// returns whether this client is currently authenticated with the OAuth provider
+    public var isAuthenticated: Bool {
+        return tokenSubject.value != nil
     }
 
-    private struct AuthorizeResponse {
-        let token: String
-        let tokenSecret: String
-        let verifier: String
+    /// initiates an OAuth 1.0a authorization flow
+    public func startAuthorization(with request: AuthRequest) async throws {
+        let tokenResponse = try await requestToken(for: request)
+        let authorizeResponse = try await presentAuthorization(for: request, tokenResponse: tokenResponse)
 
-        init?(components: [URLQueryItem], tokenSecret: String) {
-            guard let token = components.first(where: { $0.name == "oauth_token" })?.value,
-                let verifier = components.first(where: { $0.name == "oauth_verifier"})?.value else
-            {
-                return nil
-            }
-
-            self.token = token
-            self.tokenSecret = tokenSecret
-            self.verifier = verifier
-        }
-    }
-
-    /// start an OAuth based authorization flow using the given `request`
-    public func startAuthorization(with request: AuthRequest, completion: @escaping (Result<Token, Swift.Error>) -> Void = { _ in }) {
-        guard !isAuthorizing else { return }
-
-        isAuthorizing = true
-
-        let authCompletion: (Result<Token, Swift.Error>) -> Void = { [weak self] result in
-            self?.isAuthorizing = false
-            completion(result)
-        }
-
-        getRequestToken(with: request) { [weak self] requestTokenResult in
-            do {
-                let tokenResponse = try requestTokenResult.get()
-                self?.presentAuthorization(with: request, tokenResponse: tokenResponse) { authResult in
-                    do {
-                        let authorizeResponse = try authResult.get()
-                        self?.getAccessToken(with: request, authorizeResponse: authorizeResponse) { accessResult in
-                            do {
-                                let token = try accessResult.get()
-                                self?.token = token
-                                authCompletion(.success(token))
-                            } catch {
-                                authCompletion(.failure(error))
-                            }
-                        }
-                    } catch {
-                        authCompletion(.failure(error))
-                    }
-                }
-            } catch {
-                authCompletion(.failure(error))
-            }
-        }
-    }
-
-    private func getRequestToken(with request: AuthRequest, completion: @escaping (Result<RequestTokenResponse, Swift.Error>) -> Void) {
-        var urlReqest = URLRequest(url: request.requestURL)
-        authorizeRequest(&urlReqest, contentType: .urlEncoded, phase: .requestingToken)
-
-        let task = session.dataTask(with: urlReqest) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-
-            guard let data = data,
-                let dataString = String(data: data, encoding: .utf8),
-                let components = URLComponents(string: "?" + dataString)?.queryItems,
-                let response = RequestTokenResponse(components: components) else
-            {
-                completion(.failure(Error.invalidToken))
-                return
-            }
-
-            completion(.success(response))
-        }
-
-        task.resume()
-    }
-
-    private func presentAuthorization(with request: AuthRequest, tokenResponse: RequestTokenResponse, completion: @escaping (Result<AuthorizeResponse, Swift.Error>) -> Void) {
-        guard var components = URLComponents(url: request.authorizeURL, resolvingAgainstBaseURL: false) else {
-            completion(.failure(Error.invalidAuthorizeURL))
-            return
-        }
-
-        components.queryItems = [.init(name: "oauth_token", value: tokenResponse.token)]
-
-        guard let authorizeURL = components.url else {
-            completion(.failure(Error.invalidAuthorizeURL))
-            return
-        }
-
-        authSession = ASWebAuthenticationSession(url: authorizeURL, callbackURLScheme: Client.callbackURL.scheme) { [weak self] url, error in
-            defer {
-                self?.authSession = nil
-                self?.authAnchor = nil
-            }
-
-            if let error = error {
-                if (error as NSError).code == 1 {
-                    // cancellation
-                    completion(.failure(Error.cancelled))
-                } else {
-                    completion(.failure(error))
-                }
-
-                return
-            }
-
-            guard let url = url,
-                let components = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
-                let authorizeResponse = AuthorizeResponse(components: components, tokenSecret: tokenResponse.tokenSecret) else
-            {
-                completion(.failure(Error.invalidVerifier))
-                return
-            }
-
-            completion(.success(authorizeResponse))
-        }
-
-        authAnchor = request.window
-        authSession!.presentationContextProvider = self
-
-        authSession!.start()
-    }
-
-    private func getAccessToken(with request: AuthRequest, authorizeResponse: AuthorizeResponse, completion: @escaping (Result<Token, Swift.Error>) -> Void) {
-        var urlRequest = URLRequest(url: request.accessTokenURL)
-        urlRequest.httpMethod = HTTPMethod.POST.rawValue
-        authorizeRequest(&urlRequest, contentType: .urlEncoded, phase: .requestingAccessToken(authorizeResponse))
-
-        let task = session.dataTask(with: urlRequest) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-
-            guard let data = data,
-                let dataString = String(data: data, encoding: .utf8),
-                let components = URLComponents(string: "?" + dataString)?.queryItems,
-                let token = Token(components: components) else
-            {
-                completion(.failure(Error.invalidAccessToken))
-                return
-            }
-
-            completion(.success(token))
-        }
-
-        task.resume()
-    }
-}
-
-extension Client {
-
-    private static let callbackURL = URL(string: "oauththey:success")!
-    private static let keychainKey = "credentials"
-
-    private enum AuthPhase {
-        /// the first phase of authentication
-        case requestingToken
-
-        /// the second phase of authentication. Requires an `AuthorizeResponse` to properly fill out
-        case requestingAccessToken(AuthorizeResponse)
-
-        /// used when already authenticated and need to "sign" a request
-        case authenticated
-    }
-
-    private enum HTTPContentType: String {
-        case urlEncoded = "application/x-www-form-urlencoded; charset=utf-8"
-    }
-
-    private enum HTTPMethod: String {
-        case GET
-        case POST
-    }
-
-    /// removes persisted credentials and removes existing Token
-    public func logout() {
-        self.token = nil
+        // setting this will trigger subscriptions
+        self.tokenSubject.value = try await accessToken(for: request, authorizeResponse: authorizeResponse)
     }
 
     /// fills out `Authorization` and `User-Agent` headers necessary for an authentication gated endpoint
@@ -286,28 +80,123 @@ extension Client {
         authorizeRequest(&request, contentType: nil, phase: .authenticated)
     }
 
+    /// removes existing Token and cleans up the persisted token in keychain
+    public func logout() {
+        self.tokenSubject.value = nil
+    }
+}
+
+@available(iOS 15, macOS 12, *)
+extension Client {
+
+    func requestToken(for request: AuthRequest) async throws -> RequestTokenResponse {
+        var urlReqest = URLRequest(url: request.requestURL)
+        authorizeRequest(&urlReqest, contentType: .urlEncoded, phase: .requestingToken)
+
+        let (data, _) = try await configuration.urlSession.data(for: urlReqest)
+
+        guard let dataString = String(data: data, encoding: .utf8),
+              let components = URLComponents(string: "?" + dataString)?.queryItems,
+              let response = RequestTokenResponse(components: components)
+        else {
+            throw Error.invalidToken
+        }
+
+        return response
+    }
+
+    func presentAuthorization(for request: AuthRequest, tokenResponse: RequestTokenResponse) async throws -> AuthorizeResponse {
+        guard var components = URLComponents(url: request.authorizeURL, resolvingAgainstBaseURL: false) else {
+            throw Error.invalidAuthorizeURL
+        }
+
+        components.queryItems = [.init(name: "oauth_token", value: tokenResponse.token)]
+
+        guard let authorizeURL = components.url else {
+            throw Error.invalidAuthorizeURL
+        }
+
+        let delegate = WebAuthenticationSessionContext(anchor: request.window)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let authSession = ASWebAuthenticationSession(url: authorizeURL, callbackURLScheme: Client.callbackURL.scheme) { url, error in
+                if let error = error {
+                    if (error as NSError).code == 1 {
+                        continuation.resume(throwing: Error.cancelled)
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
+                    return
+                }
+
+                guard let url = url,
+                      let components = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+                      let authorizeResponse = AuthorizeResponse(components: components, tokenSecret: tokenResponse.tokenSecret)
+                else {
+                    continuation.resume(throwing: Error.invalidVerifier)
+                    return
+                }
+
+                continuation.resume(returning: authorizeResponse)
+            }
+
+            authSession.presentationContextProvider = delegate
+            authSession.start()
+        }
+    }
+
+    func accessToken(for request: AuthRequest, authorizeResponse: AuthorizeResponse) async throws -> Token {
+        var urlRequest = URLRequest(url: request.accessTokenURL)
+        urlRequest.httpMethod = HTTPMethod.POST.rawValue
+        authorizeRequest(&urlRequest, contentType: .urlEncoded, phase: .requestingAccessToken(authorizeResponse))
+
+        let (data, _) = try await configuration.urlSession.data(for: urlRequest)
+
+        guard let dataString = String(data: data, encoding: .utf8),
+              let components = URLComponents(string: "?" + dataString)?.queryItems,
+              let token = Token(components: components)
+        else {
+            throw Error.invalidAccessToken
+        }
+
+        return token
+    }
+}
+
+@available(iOS 15, macOS 12, *)
+extension Client {
+
+    static let callbackURL = URL(string: "oauththey:success")!
+    static let keychainKey = "credentials"
+
     /// fills out headers necessary for an authentication gated endpoint. this private function is able to include
     /// a `Content-Type` as well as customize those headers depending on what auth phase the user is currently in
-    private func authorizeRequest(_ request: inout URLRequest, contentType: HTTPContentType?, phase: AuthPhase) {
+    func authorizeRequest(_ request: inout URLRequest, contentType: HTTPContentType?, phase: AuthPhase) {
         if let contentType = contentType {
             request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
         }
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(generateOAuthHeaders(for: phase), forHTTPHeaderField: "Authorization")
+        request.setValue(configuration.userAgent, forHTTPHeaderField: "User-Agent")
+
+        let oauthHeaders = "OAuth " + generateOAuthHeaders(for: phase)
+            .sorted { $0.name < $1.name }
+            .map { "\($0.name)=\"\($0.value!)\"" }
+            .joined(separator: ", ")
+
+        request.setValue(oauthHeaders, forHTTPHeaderField: "Authorization")
     }
 
-    private func generateOAuthHeaders(for phase: AuthPhase) -> String {
-        // use our real token or a temporary generated one to fill out the signatured
-        let currentToken: Token = token ?? temporaryToken(for: phase)
+    func generateOAuthHeaders(for phase: AuthPhase) -> [URLQueryItem] {
+        // use our real token or a temporary generated one to fill out the signature
+        let currentToken: Token = tokenSubject.value ?? temporaryToken(for: phase)
 
         // need to round to nearest integer value
         let timestamp = Int(Date().timeIntervalSince1970)
 
         var headers: [URLQueryItem] = [
             .init(name: "oauth_version", value: "1.0"),
-            .init(name: "oauth_signature_method", value: signatureMethod.rawValue),
-            .init(name: "oauth_signature", value: currentToken.signature(with: consumerSecret)),
-            .init(name: "oauth_consumer_key", value: consumerKey),
+            .init(name: "oauth_signature_method", value: configuration.signatureMethod.rawValue),
+            .init(name: "oauth_signature", value: currentToken.signature(with: configuration.consumerSecret)),
+            .init(name: "oauth_consumer_key", value: configuration.consumerKey),
             .init(name: "oauth_timestamp", value: "\(timestamp)"),
             .init(name: "oauth_nonce", value: UUID().uuidString),
         ]
@@ -329,15 +218,11 @@ extension Client {
             ]
         }
 
-        let mappedHeaders = headers
-            .sorted { $0.name < $1.name }
-            .map { "\($0.name)=\"\($0.value!)\"" }
-            .joined(separator: ", ")
-
-        return "OAuth " + mappedHeaders
+        return headers
     }
 }
 
+@available(iOS 15, macOS 12, *)
 extension Client {
 
     private func temporaryToken(for phase: AuthPhase) -> Token {
@@ -350,10 +235,18 @@ extension Client {
     }
 }
 
-extension Client: ASWebAuthenticationPresentationContextProviding {
+@available(iOS 15, macOS 12, *)
+extension Client {
 
-    /// `authAnchor` needs to be set and non-nil or this will crash
-    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return authAnchor!
+    @objc private class WebAuthenticationSessionContext: NSObject, ASWebAuthenticationPresentationContextProviding {
+        let anchor: ASPresentationAnchor
+
+        init(anchor: ASPresentationAnchor) {
+            self.anchor = anchor
+        }
+
+        func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+            anchor
+        }
     }
 }
