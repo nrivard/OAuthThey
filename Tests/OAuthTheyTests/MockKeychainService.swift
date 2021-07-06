@@ -6,22 +6,26 @@
 //
 
 @testable import OAuthThey
+import Foundation
 
-struct MockKeychainService: KeychainServicing {
-    var storage: [String: Any] = [:]
+final class MockKeychainService: KeychainServicing {
+    var storage: [String: Data] = [:]
 
     func get<T>(key: String) throws -> T where T : Decodable, T : Encodable {
-        guard let item = storage[key] as? T else {
+        guard let data = storage[key] else {
             throw KeychainService.Error.resultMissing
         }
+
+        let item = try JSONDecoder().decode(T.self, from: data)
+
         return item
     }
 
     func set<T>(_ value: T, key: String) throws where T : Decodable, T : Encodable {
-        // do nothing
+        storage[key] = try JSONEncoder().encode(value)
     }
 
     func remove(key: String) {
-        // do nothing
+        storage.removeValue(forKey: key)
     }
 }

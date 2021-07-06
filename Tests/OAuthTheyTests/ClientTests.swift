@@ -13,8 +13,12 @@ final class ClientTests: XCTestCase {
 
     let client: Client = {
         let config = Client.Configuration(consumerKey: "OAuthTheyTest", consumerSecret: "shhh", userAgent: "", keychainServiceKey: "TestDomain")
-        let client = Client(configuration: config, keychainService: MockKeychainService())
-        client.token = .init(key: "key", secret: "secret")
+        let token = Token(key: "key", secret: "secret")
+
+        let keychainService = MockKeychainService()
+        try! keychainService.set(token, key: Client.keychainKey)
+
+        let client = Client(configuration: config, keychainService: keychainService)
 
         return client
     }()
