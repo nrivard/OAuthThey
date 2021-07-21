@@ -10,7 +10,6 @@ import AuthenticationServices
 import Foundation
 import Combine
 
-@available(iOS 15, macOS 12, *)
 public class Client {
     /// configuration for this `Client`
     public let configuration: Configuration
@@ -58,7 +57,6 @@ public class Client {
 }
 
 // MARK: - Initiating authentication
-@available(iOS 15, macOS 12, *)
 extension Client {
 
     /// returns whether this client is currently authenticated with the OAuth provider
@@ -86,7 +84,6 @@ extension Client {
     }
 }
 
-@available(iOS 15, macOS 12, *)
 extension Client {
 
     func requestToken(for request: AuthRequest) async throws -> RequestTokenResponse {
@@ -163,7 +160,6 @@ extension Client {
     }
 }
 
-@available(iOS 15, macOS 12, *)
 extension Client {
 
     static let callbackURL = URL(string: "oauththey:success")!
@@ -222,7 +218,6 @@ extension Client {
     }
 }
 
-@available(iOS 15, macOS 12, *)
 extension Client {
 
     private func temporaryToken(for phase: AuthPhase) -> Token {
@@ -235,7 +230,6 @@ extension Client {
     }
 }
 
-@available(iOS 15, macOS 12, *)
 extension Client {
 
     @objc private class WebAuthenticationSessionContext: NSObject, ASWebAuthenticationPresentationContextProviding {

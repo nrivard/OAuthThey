@@ -5,8 +5,8 @@ import PackageDescription
 let package = Package(
     name: "OAuthThey",
     platforms: [
-        .iOS(.v14),
-        .macOS(.v11)
+        .iOS(.v15),
+        .macOS(.v12)
     ],
     products: [
         .library(
@@ -16,7 +16,8 @@ let package = Package(
     targets: [
         .target(
             name: "OAuthThey",
-            dependencies: []),
+            dependencies: []
+        ),
         .testTarget(
             name: "OAuthTheyTests",
             dependencies: ["OAuthThey"]),

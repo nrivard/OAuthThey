@@ -8,7 +8,6 @@
 
 import AuthenticationServices
 
-@available(iOS 15, macOS 12, *)
 extension Client {
 
     /// signature methods supported
@@ -73,7 +72,8 @@ extension Client {
         public let accessTokenURL: URL
 
         public let window: ASPresentationAnchor
-
+        
+        @available(iOSApplicationExtension, unavailable)
         public init(requestURL: URL, authorizeURL: URL, accessTokenURL: URL, window: ASPresentationAnchor = PlatformApplication.currentWindow) {
             self.requestURL = requestURL
             self.authorizeURL = authorizeURL
@@ -83,7 +83,6 @@ extension Client {
     }
 }
 
-@available(iOS 15, macOS 12, *)
 extension Client {
 
     struct RequestTokenResponse {

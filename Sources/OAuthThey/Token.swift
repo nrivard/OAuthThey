@@ -8,7 +8,6 @@
 
 import Foundation
 
-@available(iOS 15, macOS 12, *)
 public struct Token: Codable {
 
     /// The OAuth token key
@@ -23,7 +22,6 @@ public struct Token: Codable {
     }
 }
 
-@available(iOS 15, macOS 12, *)
 extension Token {
 
     init?(components: [URLQueryItem]) {
@@ -37,7 +35,6 @@ extension Token {
     }
 }
 
-@available(iOS 15, macOS 12, *)
 extension Token {
 
     /// the signature method for this token

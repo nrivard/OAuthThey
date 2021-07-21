@@ -9,7 +9,6 @@ import OAuthThey
 import SwiftUI
 import AuthenticationServices
 
-@available(iOS 15, macOS 12, *)
 struct ContentView: View {
     static let consumerKey = ""
     static let consumerSecret = ""

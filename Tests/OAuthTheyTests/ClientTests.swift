@@ -8,7 +8,6 @@
 import XCTest
 @testable import OAuthThey
 
-@available(iOS 15, macOS 12, *)
 final class ClientTests: XCTestCase {
 
     let client: Client = {

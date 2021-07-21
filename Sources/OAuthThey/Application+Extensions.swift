@@ -13,6 +13,7 @@ public typealias PlatformApplication = UIApplication
 
 extension UIApplication {
 
+    @available(iOSApplicationExtension, unavailable)
     public static var currentWindow: UIWindow {
         shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
