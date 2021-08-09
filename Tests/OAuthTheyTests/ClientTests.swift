@@ -22,8 +22,8 @@ final class ClientTests: XCTestCase {
         return client
     }()
 
-    func testCommonOAuthHeaders() throws {
-        let headers = client.generateOAuthHeaders(for: .authenticated)
+    func testCommonOAuthHeaders() async throws {
+        let headers = await client.generateOAuthHeaders(for: .authenticated)
 
         let version = try XCTUnwrap(headers.first(where: { $0.name == "oauth_version" }))
         XCTAssertEqual(version.value, "1.0")
@@ -41,23 +41,23 @@ final class ClientTests: XCTestCase {
         XCTAssertNotNil(headers.first(where: { $0.name == "oauth_nonce"}))
     }
 
-    func testAuthenticatedOAuthHeaders() throws {
-        let headers = client.generateOAuthHeaders(for: .authenticated)
+    func testAuthenticatedOAuthHeaders() async throws {
+        let headers = await client.generateOAuthHeaders(for: .authenticated)
 
         let token = try XCTUnwrap(headers.first(where: { $0.name == "oauth_token" }))
         XCTAssertEqual(token.value, "key")
     }
 
-    func testRequestingTokenOAuthHeaders() throws {
-        let headers = client.generateOAuthHeaders(for: .requestingToken)
+    func testRequestingTokenOAuthHeaders() async throws {
+        let headers = await client.generateOAuthHeaders(for: .requestingToken)
 
         let callback = try XCTUnwrap(headers.first(where: { $0.name == "oauth_callback" }))
         XCTAssertEqual(callback.value, Client.callbackURL.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed))
     }
 
-    func testRequestingAccessTokenOAuthHeaders() throws {
+    func testRequestingAccessTokenOAuthHeaders() async throws {
         let authorizeResponse = Client.AuthorizeResponse(token: "token", tokenSecret: "tokenSecret", verifier: "verifier")
-        let headers = client.generateOAuthHeaders(for: .requestingAccessToken(authorizeResponse))
+        let headers = await client.generateOAuthHeaders(for: .requestingAccessToken(authorizeResponse))
 
         let token = try XCTUnwrap(headers.first(where: { $0.name == "oauth_token" }))
         XCTAssertEqual(token.value, authorizeResponse.token)

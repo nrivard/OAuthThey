@@ -14,6 +14,7 @@ public typealias PlatformApplication = UIApplication
 extension UIApplication {
 
     @available(iOSApplicationExtension, unavailable)
+    @MainActor
     public static var currentWindow: UIWindow {
         shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
@@ -30,6 +31,7 @@ public typealias PlatformApplication = NSApplication
 
 extension NSApplication {
 
+    @MainActor
     public static var currentWindow: NSWindow {
         return shared.keyWindow!
     }

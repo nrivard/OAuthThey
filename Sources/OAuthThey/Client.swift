@@ -10,21 +10,25 @@ import AuthenticationServices
 import Foundation
 import Combine
 
-public class Client {
+/// OAuth 1.0a client that can be used to initiate authorization, authorize `URLRequest`s using the received OAuth token, or logout.
+/// By default, this type saves the token to the secure keychain up receipt, loads any stored token on `init`, and removes the token when logged out.
+public actor Client {
     /// configuration for this `Client`
     public let configuration: Configuration
 
-    /// publisher that will send new values with authentication status changes
-    public let authenticationPublisher: AnyPublisher<Token?, Never>
-
-    /// underlying storage type for subcribing to authentication changes
-    private let tokenSubject: CurrentValueSubject<Token?, Never>
+    /// token used to authorize requests
+    public private(set) var token: Token? {
+        didSet {
+            if let token = token {
+                try? keychainService.set(token, key: Client.keychainKey)
+            } else {
+                keychainService.remove(key: Client.keychainKey)
+            }
+        }
+    }
 
     /// Injected keychain service
     private let keychainService: KeychainServicing
-
-    /// Keep a subscription to the token subject so we can update keychain
-    private var tokenCanceller: AnyCancellable?
 
     /// Create a `Client` with the given `Configuration`
     public convenience init(configuration: Configuration) {
@@ -37,40 +41,26 @@ public class Client {
         self.keychainService = keychainService
 
         // attempt to load a persisted token
-        let token = try? self.keychainService.get(key: Client.keychainKey) as Token
-
-        // the current value should be whether we are currently subscribed or not
-        self.tokenSubject = CurrentValueSubject(token)
-        self.authenticationPublisher = tokenSubject.eraseToAnyPublisher()
-
-        // the subject is our source of truth so we just have to clean up Keychain when its value changes
-        self.tokenCanceller = authenticationPublisher
-            .receive(on: DispatchQueue.global())
-            .sink {
-                if let token = $0 {
-                    try? keychainService.set(token, key: Client.keychainKey)
-                } else {
-                    keychainService.remove(key: Client.keychainKey)
-                }
-            }
+        token = try? keychainService.get(key: Client.keychainKey) as Token
     }
 }
 
 // MARK: - Initiating authentication
 extension Client {
 
-    /// returns whether this client is currently authenticated with the OAuth provider
+    /// convenience that checks whether this client has an authenticated token
     public var isAuthenticated: Bool {
-        return tokenSubject.value != nil
+        return token != nil
     }
 
     /// initiates an OAuth 1.0a authorization flow
-    public func startAuthorization(with request: AuthRequest) async throws {
+    @discardableResult
+    public func startAuthorization(with request: AuthRequest) async throws -> Token {
         let tokenResponse = try await requestToken(for: request)
         let authorizeResponse = try await presentAuthorization(for: request, tokenResponse: tokenResponse)
 
-        // setting this will trigger subscriptions
-        self.tokenSubject.value = try await accessToken(for: request, authorizeResponse: authorizeResponse)
+        token = try await accessToken(for: request, authorizeResponse: authorizeResponse)
+        return token!
     }
 
     /// fills out `Authorization` and `User-Agent` headers necessary for an authentication gated endpoint
@@ -80,7 +70,7 @@ extension Client {
 
     /// removes existing Token and cleans up the persisted token in keychain
     public func logout() {
-        self.tokenSubject.value = nil
+        self.token = nil
     }
 }
 
@@ -102,6 +92,7 @@ extension Client {
         return response
     }
 
+    @MainActor
     func presentAuthorization(for request: AuthRequest, tokenResponse: RequestTokenResponse) async throws -> AuthorizeResponse {
         guard var components = URLComponents(url: request.authorizeURL, resolvingAgainstBaseURL: false) else {
             throw Error.invalidAuthorizeURL
@@ -183,7 +174,7 @@ extension Client {
 
     func generateOAuthHeaders(for phase: AuthPhase) -> [URLQueryItem] {
         // use our real token or a temporary generated one to fill out the signature
-        let currentToken: Token = tokenSubject.value ?? temporaryToken(for: phase)
+        let currentToken: Token = token ?? temporaryToken(for: phase)
 
         // need to round to nearest integer value
         let timestamp = Int(Date().timeIntervalSince1970)

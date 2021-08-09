@@ -74,7 +74,7 @@ extension Client {
         public let window: ASPresentationAnchor
         
         @available(iOSApplicationExtension, unavailable)
-        public init(requestURL: URL, authorizeURL: URL, accessTokenURL: URL, window: ASPresentationAnchor = PlatformApplication.currentWindow) {
+        public init(requestURL: URL, authorizeURL: URL, accessTokenURL: URL, window: ASPresentationAnchor) {
             self.requestURL = requestURL
             self.authorizeURL = authorizeURL
             self.accessTokenURL = accessTokenURL
