@@ -165,7 +165,6 @@ extension Client {
         request.setValue(configuration.userAgent, forHTTPHeaderField: "User-Agent")
 
         let oauthHeaders = "OAuth " + generateOAuthHeaders(for: phase)
-            .sorted { $0.name < $1.name }
             .map { "\($0.name)=\"\($0.value!)\"" }
             .joined(separator: ", ")
 
@@ -180,12 +179,12 @@ extension Client {
         let timestamp = Int(Date().timeIntervalSince1970)
 
         var headers: [URLQueryItem] = [
-            .init(name: "oauth_version", value: "1.0"),
-            .init(name: "oauth_signature_method", value: configuration.signatureMethod.rawValue),
-            .init(name: "oauth_signature", value: currentToken.signature(with: configuration.consumerSecret)),
             .init(name: "oauth_consumer_key", value: configuration.consumerKey),
-            .init(name: "oauth_timestamp", value: "\(timestamp)"),
             .init(name: "oauth_nonce", value: UUID().uuidString),
+            .init(name: "oauth_signature", value: currentToken.signature(with: configuration.consumerSecret)),
+            .init(name: "oauth_signature_method", value: configuration.signatureMethod.rawValue),
+            .init(name: "oauth_timestamp", value: "\(timestamp)"),
+            .init(name: "oauth_version", value: "1.0")
         ]
 
         switch phase {
